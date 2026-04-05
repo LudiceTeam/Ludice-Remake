@@ -14,7 +14,7 @@ load_dotenv()
 
 
 async_engine = create_async_engine(
-    f"postgresql+asyncpg://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}@localhost:5432/main_database",
+    f"postgresql+asyncpg://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}@localhost:5432/ludice_main_database",
     pool_size=20,           # Размер пула соединений
     max_overflow=50,        # Максимальное количество соединений
     pool_recycle=3600,      # Пересоздавать соединения каждый час
@@ -41,20 +41,57 @@ async def create_table():
 
 
 
-async def create_user(user_id:str):
+async def create_user(user_id:str) -> bool:
     async with AsyncSession(async_engine) as conn:
         async with conn.begin():
             try:
                 stmt = insert(main_table).values(
                     user_id = user_id,
-                    balance = 0,
+                    balance = 20,
                     wins_count = 0,
                     games_count = 0,
                 ).on_conflict_do_nothing(
                     index_elements=[main_table.c.user_id]
                 )
+                result = await conn.execute(stmt)
+
+                if result.rowcount == 0:
+                    return False
+                return True
+                
+            except Exception:
+                logger.exception("MAIN SQL ERROR")
+                return False
+
+async def upper_balance(user_id:str,amount:int):
+    async with AsyncSession(async_engine) as conn:
+        async with conn.begin():
+            try:
+                stmt = main_table.update().where(main_table.c.user_id == user_id).values(
+                    balance = main_table.c.balance + amount
+                )
                 await conn.execute(stmt)
             except Exception:
                 logger.exception("MAIN SQL ERROR")
-                return
+                return         
+
+async def lower_balance(user_id:str,amount:int):
+    async with AsyncSession(async_engine) as conn:
+        async with conn.begin():
+            try:
+                stmt = main_table.update().where(main_table.c.user_id == user_id).values(
+                    balance = main_table.c.balance - amount
+                )
+                await conn.execute(stmt)
+            except Exception:
+                logger.exception("MAIN SQL ERROR")
+                return   
+
+async def get_user_balance(user_id:str):
+    async with AsyncSession(async_engine) as conn:
+        try:
+            pass
+        except Exception:
+            logger.exception("MAIN SQL ERROR")
+            return   
     
