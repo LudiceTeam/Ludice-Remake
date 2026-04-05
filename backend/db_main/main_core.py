@@ -5,6 +5,9 @@ from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv 
 import os
 from backend.db_main.main_models import metadata_obj,main_table
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 load_dotenv()
@@ -35,3 +38,23 @@ async def drop_table():
 async def create_table():
     async with async_engine.begin() as conn:
         await conn.run_sync(metadata_obj.create_all)
+
+
+
+async def create_user(user_id:str):
+    async with AsyncSession(async_engine) as conn:
+        async with conn.begin():
+            try:
+                stmt = insert(main_table).values(
+                    user_id = user_id,
+                    balance = 0,
+                    wins_count = 0,
+                    games_count = 0,
+                ).on_conflict_do_nothing(
+                    index_elements=[main_table.c.user_id]
+                )
+                await conn.execute(stmt)
+            except Exception:
+                logger.exception("MAIN SQL ERROR")
+                return
+    
