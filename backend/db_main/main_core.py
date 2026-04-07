@@ -87,11 +87,65 @@ async def lower_balance(user_id:str,amount:int):
                 logger.exception("MAIN SQL ERROR")
                 return   
 
-async def get_user_balance(user_id:str):
+async def get_user_balance(user_id:str) -> int:
     async with AsyncSession(async_engine) as conn:
         try:
-            pass
+            stmt = select(main_table.c.balance).where(main_table.c.user_id == user_id)
+            res = await conn.execute(stmt)
+            data = res.scalar_one_or_none()
+            return data if data is not None else 0
         except Exception:
             logger.exception("MAIN SQL ERROR")
-            return   
+            return 0 
     
+async def upper_user_win(user_id:str):
+    async with AsyncSession(async_engine) as conn:
+        async with conn.begin():
+            try:
+                stmt = main_table.update().where(main_table.c.user_id == user_id).values(
+                    wins_count = main_table.c.wins_count + 1
+                )
+                await conn.execute(stmt)
+            except Exception:
+                logger.exception("MAIN SQL ERROR")
+                return    
+
+
+async def upper_user_games_amount(user_id:str):
+    async with AsyncSession(async_engine) as conn:
+        async with conn.begin():
+            try:
+                stmt = main_table.update().where(main_table.c.user_id == user_id).values(
+                    games_count = main_table.c.games_count + 1
+                )
+                await conn.execute(stmt)
+            except Exception:
+                logger.exception("MAIN SQL ERROR")
+                return
+
+
+async def profile(user_id:str) -> dict:
+    async with AsyncSession(async_engine) as conn:
+        try:
+            stmt = select(main_table.c.balance,main_table.c.games_count,main_table.c.wins_count).where(
+                main_table.c.user_id == user_id
+            )
+
+            res = await conn.execute(stmt)
+            data = res.fetchone()
+
+            if not data:
+                return {}
+            
+            balance,games_count,wins_count = data
+
+            return {
+                "User ID" : user_id,
+                "Balance" : balance,
+                "Games Count" : games_count,
+                "Wins Count" : wins_count 
+            }
+
+        except Exception:
+            logger.exception("MAIN SQL ERROR")
+            return {}
