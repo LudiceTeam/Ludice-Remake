@@ -1,0 +1,42 @@
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv 
+import os
+from backend.game_db.game_core import metadata_obj,game_table
+import logging
+import uuid
+
+logger = logging.getLogger(__name__)
+
+
+load_dotenv()
+
+
+async_engine = create_async_engine(
+    f"postgresql+asyncpg://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}@localhost:5432/ludice_main_database",
+    pool_size=20,           # Размер пула соединений
+    max_overflow=50,        # Максимальное количество соединений
+    pool_recycle=3600,      # Пересоздавать соединения каждый час
+    pool_pre_ping=True,     # Проверять соединение перед использованием
+    echo=False
+)
+
+
+
+
+AsyncSessionLocal = sessionmaker(
+    async_engine, 
+    class_=AsyncSession,
+    expire_on_commit=False
+)
+
+async def drop_table():
+    async with async_engine.begin() as conn:
+        await conn.run_sync(metadata_obj.drop_all)
+
+async def create_table():
+    async with async_engine.begin() as conn:
+        await conn.run_sync(metadata_obj.create_all)
+
